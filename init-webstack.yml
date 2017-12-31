@@ -1,0 +1,127 @@
+---
+#Initialize the web components on this host. Install Apache / PHP, download and configure wordpress and mount the EFS
+#All of these tasks will be run locally
+- hosts: webstack
+  vars:
+    region: ap-southeast-2
+  tasks:
+  - name: "Install unzip"
+    apt:
+      name: unzip
+      state: present
+  - name: "Install curl"
+    apt:
+      name: curl
+      state: present
+  - name: "Install Apache / PHP"
+    apt:
+      name: php
+      state: present
+  - name: "Install php-mysql"
+    apt:
+      name: php-mysql
+      state: present
+  - name: "Install php-db"
+    apt:
+      name: php-db
+      state: present
+  - name: "Install python-mysqldb"
+    apt:
+      name: python-mysqldb
+      state: present
+  - name: "Install nfs-common"
+    apt:
+      name: nfs-common
+      state: present
+  - name: "Download Cloudwatch Agent"
+    get_url:
+      url: https://s3.amazonaws.com/aws-cloudwatch/downloads/latest/awslogs-agent-setup.py
+      dest: /root/awslogs-agent-setup.py
+      mode: 0744
+  - name: "Install Cloudwatch Agent"
+    command: python /root/awslogs-agent-setup.py --region ap-southeast-2 -n -c /root/webinit/module_utils/awslogs.conf
+  - name: "Wordpress Config - DB User Config"
+    mysql_user:
+      name: "{{ mywordpresssite_db_wp_username }}"
+      password: "{{ mywordpresssite_db_wp_password }}"
+      host: "%"
+      priv: "mywordpresssite_db_webstack.*:ALL"
+      state: present
+      login_host: "{{ mywordpresssite_db_url }}"
+      login_user: "{{ mywordpresssite_db_admin_username }}"
+      login_password: "{{ mywordpresssite_db_admin_password }}"
+  - name: "Wordpress Config - Create Database"
+    mysql_db:
+      name: "{{ mywordpresssite_db_wp_name }}"
+      state: present
+      login_host: "{{ mywordpresssite_db_url }}"
+      login_user: "{{ mywordpresssite_db_admin_username }}"
+      login_password: "{{ mywordpresssite_db_admin_password }}"
+  - name: "Wordpress Config - Download Local Wordpress"
+    s3:
+      bucket: "{{ mywordpresssite_s3_utilities }}"
+      object: resources/wordpress-latest.tar.gz
+      dest: "{{ playbook_dir }}/wordpress-latest.tar.gz"
+      mode: get
+  - name: "Wordpress Config - Untar Package"
+    unarchive:
+      src: "{{ playbook_dir }}/wordpress-latest.tar.gz"
+      dest: "{{ playbook_dir }}"
+  - name: "Wordpress Config - Copy Config"
+    copy:
+      remote_src: yes
+      src: "{{ playbook_dir }}/wordpress/wp-config-sample.php"
+      dest: "{{ playbook_dir }}/wordpress/wp-config.php"
+  - name: "Wordpress Config - Set Database"
+    replace:
+      dest: "{{ playbook_dir }}/wordpress/wp-config.php" #WARNING. EVENTUALLY NEEDS TO BE REPLACED WITH "PATH" IN ANSIBLE 2.3
+      regexp: "database_name_here"
+      replace: "{{ mywordpresssite_db_wp_name }}"
+  - name: "Wordpress Config - Set Username"
+    replace:
+      dest: "{{ playbook_dir }}/wordpress/wp-config.php"
+      regexp: "username_here"
+      replace: "{{ mywordpresssite_db_wp_username }}"
+  - name: "Wordpress Config - Set Password"
+    replace:
+      dest: "{{ playbook_dir }}/wordpress/wp-config.php"
+      regexp: "password_here"
+      replace: "{{ mywordpresssite_db_wp_password }}"
+  - name: "Wordpress Config - Set URL"
+    replace:
+      dest: "{{ playbook_dir }}/wordpress/wp-config.php"
+      regexp: "localhost"
+      replace: "{{ mywordpresssite_db_url }}"
+  - name: "Wordpress Config - Set Secrets" #WARNING. THIS IS VERY BAD PRACTICE. THIS IDEALLY NEEDS TO BE SET BEFORE THE WORDPRESS PACKAGE IS AVAILBLE IN THE S3 BUCKET. THIS WILL BE DONE AT A LATER DATE
+    replace:
+      dest: "{{ playbook_dir }}/wordpress/wp-config.php"
+      regexp: "put your unique phrase here"
+      replace: ";Vo0RJm>rIon,77mw5&K36c>[6 #_&V|$+a|ycHidD}Gn!mM8oZeyvGWxNs2Jf??"
+  - name: "Wordpress Config - Deploy" #NOTE: DUE TO LIMITATION WITH COPY MODULE, WE NEED TO USE SHELL SCRIPT TO MOVE THE FOLDER TO THE CORRECT LOCATION AND SET PERMISSIONS
+    command: "cp -R {{ playbook_dir }}/wordpress /opt"
+  - name: "Wordpress Config - Set Permission" #NOTE: THIS COMMAND IS REQUIRED DUE TO LIMITATION MENTIONED ABOVE
+    command: "chown -R www-data:www-data /opt/wordpress"
+  - name: "Wordpress Config - Create Upload"
+    file:
+      path: /opt/wordpress/wp-content/uploads
+      state: directory
+      mode: 0755
+  - name: "Wordpress Config - Mount EFS" #NOTE: NEED TO LOOK AT REPLACEING WITH ANSIBLE MOUNT MODULE
+    command: mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2 fs-37aa5f0e.efs.ap-southeast-2.amazonaws.com:/ /opt/wordpress/wp-content/uploads
+  - name: "Wordpress Config - Alter Permission Upload"
+    file:
+      path: /opt/wordpress/wp-content/uploads
+      state: directory
+      owner: www-data
+      group: www-data
+      mode: 0755
+  - name: "Wordpress Config - Configure vhost"
+    template: 
+      src: "{{ playbook_dir }}/templates/001-wordpress.conf.j2"
+      dest: /etc/apache2/sites-available/001-wordpress.conf
+  - name: "Wordpress Config - Enable vhost"
+    command: "a2ensite 001-wordpress"
+  - name: "Restart Apache"
+    service:
+      name: apache2
+      state: restarted
