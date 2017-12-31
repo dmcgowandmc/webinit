@@ -16,4 +16,6 @@ The webinit ansible scripts are intended to be triggered by cloud-init on ec2 st
 
 If however you do want to run the scripts manually for debugging purposes, see command below.
 
+NOTE: This script is intended to run locally under root user
+
 ansible-playbook -i inventory/webstack init-webstack.yml --extra-vars "mywordpresssite_s3_utilities=<s3_bucket> mywordpresssite_db_wp_username=<wp_db_username> mywordpresssite_db_wp_password=<wp_db_password> mywordpresssite_db_wp_name=<wp_db_name> mywordpresssite_db_url=<db_instance_url> mywordpresssite_db_admin_username=<db_instance_username> mywordpresssite_db_admin_password=<db_instance_password> mywordpresssite_email_admin=<admin_email> mywordpresssite_fqdn=<fqdn>"
