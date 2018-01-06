@@ -45,7 +45,7 @@
       name: "{{ mywordpresssite_db_wp_username }}"
       password: "{{ mywordpresssite_db_wp_password }}"
       host: "%"
-      priv: "mywordpresssite_db_webstack.*:ALL"
+      priv: "{{ mywordpresssite_db_wp_name }}.*:ALL"
       state: present
       login_host: "{{ mywordpresssite_db_url }}"
       login_user: "{{ mywordpresssite_db_admin_username }}"
