@@ -57,48 +57,40 @@
       login_host: "{{ mywordpresssite_db_url }}"
       login_user: "{{ mywordpresssite_db_admin_username }}"
       login_password: "{{ mywordpresssite_db_admin_password }}"
-  - name: "Wordpress Config - Download Local Wordpress"
-    s3:
-      bucket: "{{ mywordpresssite_s3_utilities }}"
-      object: resources/wordpress-latest.tar.gz
-      dest: "{{ playbook_dir }}/wordpress-latest.tar.gz"
-      mode: get
-  - name: "Wordpress Config - Untar Package"
-    unarchive:
-      src: "{{ playbook_dir }}/wordpress-latest.tar.gz"
-      dest: "{{ playbook_dir }}"
+  - name: "Wordpress Config - Download Local Wordpress" #Difficulty getting recursive to work on a folder with the s3 module so using aws cli for now
+    command: "aws s3 cp s3://{{ mywordpresssite_s3_utilities }}/resources/{{ mywordpresssite_db_wp_name }} {{ mywordpresssite_db_wp_name }} --recursive"
   - name: "Wordpress Config - Copy Config"
     copy:
       remote_src: yes
-      src: "{{ playbook_dir }}/wordpress/wp-config-sample.php"
-      dest: "{{ playbook_dir }}/wordpress/wp-config.php"
+      src: "{{ playbook_dir }}/{{ mywordpresssite_db_wp_name }}/wp-config-sample.php"
+      dest: "{{ playbook_dir }}/{{ mywordpresssite_db_wp_name }}/wp-config.php"
   - name: "Wordpress Config - Set Database"
     replace:
-      dest: "{{ playbook_dir }}/wordpress/wp-config.php" #WARNING. EVENTUALLY NEEDS TO BE REPLACED WITH "PATH" IN ANSIBLE 2.3
+      dest: "{{ playbook_dir }}/{{ mywordpresssite_db_wp_name }}/wp-config.php" #WARNING. EVENTUALLY NEEDS TO BE REPLACED WITH "PATH" IN ANSIBLE 2.3
       regexp: "database_name_here"
       replace: "{{ mywordpresssite_db_wp_name }}"
   - name: "Wordpress Config - Set Username"
     replace:
-      dest: "{{ playbook_dir }}/wordpress/wp-config.php"
+      dest: "{{ playbook_dir }}/{{ mywordpresssite_db_wp_name }}/wp-config.php"
       regexp: "username_here"
       replace: "{{ mywordpresssite_db_wp_username }}"
   - name: "Wordpress Config - Set Password"
     replace:
-      dest: "{{ playbook_dir }}/wordpress/wp-config.php"
+      dest: "{{ playbook_dir }}/{{ mywordpresssite_db_wp_name }}/wp-config.php"
       regexp: "password_here"
       replace: "{{ mywordpresssite_db_wp_password }}"
   - name: "Wordpress Config - Set URL"
     replace:
-      dest: "{{ playbook_dir }}/wordpress/wp-config.php"
+      dest: "{{ playbook_dir }}/{{ mywordpresssite_db_wp_name }}/wp-config.php"
       regexp: "localhost"
       replace: "{{ mywordpresssite_db_url }}"
   - name: "Wordpress Config - Set Secrets" #WARNING. THIS IS VERY BAD PRACTICE. THIS IDEALLY NEEDS TO BE SET BEFORE THE WORDPRESS PACKAGE IS AVAILBLE IN THE S3 BUCKET. THIS WILL BE DONE AT A LATER DATE
     replace:
-      dest: "{{ playbook_dir }}/wordpress/wp-config.php"
+      dest: "{{ playbook_dir }}/{{ mywordpresssite_db_wp_name }}/wp-config.php"
       regexp: "put your unique phrase here"
       replace: ";Vo0RJm>rIon,77mw5&K36c>[6 #_&V|$+a|ycHidD}Gn!mM8oZeyvGWxNs2Jf??"
   - name: "Wordpress Config - Deploy" #NOTE: DUE TO LIMITATION WITH COPY MODULE, WE NEED TO USE SHELL SCRIPT TO MOVE THE FOLDER TO THE CORRECT LOCATION AND SET PERMISSIONS
-    command: "cp -R {{ playbook_dir }}/wordpress /opt"
+    command: "cp -R {{ playbook_dir }}/{{ mywordpresssite_db_wp_name }} /opt/wordpress"
   - name: "Wordpress Config - Set Permission" #NOTE: THIS COMMAND IS REQUIRED DUE TO LIMITATION MENTIONED ABOVE
     command: "chown -R www-data:www-data /opt/wordpress"
   - name: "Wordpress Config - Create Upload"
