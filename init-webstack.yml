@@ -74,7 +74,7 @@
       login_user: "{{ mywordpresssite_db_admin_username }}"
       login_password: "{{ mywordpresssite_db_admin_password }}"
   - name: "Wordpress Config - Download Local Wordpress" #Difficulty getting recursive to work on a folder with the s3 module so using aws cli for now
-    command: "aws s3 cp s3://{{ mywordpresssite_s3_utilities }}/resources/{{ mywordpresssite_db_wp_name }} {{ mywordpresssite_db_wp_name }} --recursive"
+    command: "aws s3 cp s3://{{ mywordpresssite_s3_utilities }}/resources/{{ mywordpresssite_db_wp_name }} {{ playbook_dir }}/{{ mywordpresssite_db_wp_name }} --recursive"
   - name: "Wordpress Config - Copy Config" #The Following Step isn't necessary if the package was uploaded from packsync, but no harm in keeping them here for now.
     copy:
       remote_src: yes
