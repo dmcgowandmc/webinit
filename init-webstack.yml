@@ -9,6 +9,10 @@
     apt:
       name: unzip
       state: present
+  - name: "Install rsync"
+    apt:
+      name: rsync
+      state: present
   - name: "Install curl"
     apt:
       name: curl
@@ -33,12 +37,24 @@
     apt:
       name: nfs-common
       state: present
+  - name: "Download root Private Key" #Permission Difficulty so sticking with CLI for now
+    command: "aws s3 cp s3://{{ mywordpresssite_s3_utilities }}/resources/id_rsa /root/.ssh/"
+  - name: "Download root Public Key" #Permission Difficulty so sticking with CLI for now
+    command: "aws s3 cp s3://{{ mywordpresssite_s3_utilities }}/resources/id_rsa.pub /root/.ssh/"
+  - name: "Set Correct Permissions for Public / Private key"
+    command: "chmod -R go-rw /root/.ssh/"
+  - name: "Add root Public Key to Authorized Hosts"
+    lineinfile:
+      dest: /root/.ssh/authorized_keys
+      line: "{{ item }}"
+    with_file:
+      - "/root/.ssh/id_rsa.pub"
   - name: "Download Cloudwatch Agent"
     get_url:
       url: https://s3.amazonaws.com/aws-cloudwatch/downloads/latest/awslogs-agent-setup.py
       dest: /root/awslogs-agent-setup.py
       mode: 0744
-  - name: "Install Cloudwatch Agent"
+  - name: "Install Cloudwatch Agent" #Should eventually build a module
     command: python /root/awslogs-agent-setup.py --region ap-southeast-2 -n -c /root/webinit/module_utils/awslogs.conf
   - name: "Wordpress Config - DB User Config"
     mysql_user:
@@ -59,27 +75,27 @@
       login_password: "{{ mywordpresssite_db_admin_password }}"
   - name: "Wordpress Config - Download Local Wordpress" #Difficulty getting recursive to work on a folder with the s3 module so using aws cli for now
     command: "aws s3 cp s3://{{ mywordpresssite_s3_utilities }}/resources/{{ mywordpresssite_db_wp_name }} {{ mywordpresssite_db_wp_name }} --recursive"
-  - name: "Wordpress Config - Copy Config"
+  - name: "Wordpress Config - Copy Config" #The Following Step isn't necessary if the package was uploaded from packsync, but no harm in keeping them here for now.
     copy:
       remote_src: yes
       src: "{{ playbook_dir }}/{{ mywordpresssite_db_wp_name }}/wp-config-sample.php"
       dest: "{{ playbook_dir }}/{{ mywordpresssite_db_wp_name }}/wp-config.php"
-  - name: "Wordpress Config - Set Database"
+  - name: "Wordpress Config - Set Database" #The Following Step isn't necessary if the package was uploaded from packsync, but no harm in keeping them here for now.
     replace:
       dest: "{{ playbook_dir }}/{{ mywordpresssite_db_wp_name }}/wp-config.php" #WARNING. EVENTUALLY NEEDS TO BE REPLACED WITH "PATH" IN ANSIBLE 2.3
       regexp: "database_name_here"
       replace: "{{ mywordpresssite_db_wp_name }}"
-  - name: "Wordpress Config - Set Username"
+  - name: "Wordpress Config - Set Username" #The Following Step isn't necessary if the package was uploaded from packsync, but no harm in keeping them here for now.
     replace:
       dest: "{{ playbook_dir }}/{{ mywordpresssite_db_wp_name }}/wp-config.php"
       regexp: "username_here"
       replace: "{{ mywordpresssite_db_wp_username }}"
-  - name: "Wordpress Config - Set Password"
+  - name: "Wordpress Config - Set Password" #The Following Step isn't necessary if the package was uploaded from packsync, but no harm in keeping them here for now.
     replace:
       dest: "{{ playbook_dir }}/{{ mywordpresssite_db_wp_name }}/wp-config.php"
       regexp: "password_here"
       replace: "{{ mywordpresssite_db_wp_password }}"
-  - name: "Wordpress Config - Set URL"
+  - name: "Wordpress Config - Set URL" #The Following Step isn't necessary if the package was uploaded from packsync, but no harm in keeping them here for now.
     replace:
       dest: "{{ playbook_dir }}/{{ mywordpresssite_db_wp_name }}/wp-config.php"
       regexp: "localhost"
