@@ -1,0 +1,1 @@
+*/5 * * * * root ansible-playbook /root/packsync/init-packsync.yml -i /root/packsync/inventory/localwebstack --extra-vars "mywordpresssite_db_wp_name={{ mywordpresssite_db_wp_name }} mywordpresssite_s3_utilities={{ mywordpresssite_s3_utilities }}" > /root/packsync/runlog.log

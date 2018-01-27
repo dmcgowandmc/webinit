@@ -133,3 +133,9 @@
     service:
       name: apache2
       state: restarted
+  - name: "Packsync Config - Download packsync"
+    command: "aws s3 cp s3://{{ mywordpresssite_s3_utilities }}/bootstrap/packsync /root/packsync --recursive"
+  - name: "Packsync Config - Configure Cron"
+    template:
+      src: "{{ playbook_dir }}/templates/packsync-cron.j2"
+      dest: /etc/cron.d/packsync-cron
