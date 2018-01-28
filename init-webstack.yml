@@ -139,3 +139,7 @@
     template:
       src: "{{ playbook_dir }}/templates/packsync-cron.j2"
       dest: /etc/cron.d/packsync-cron
+  - name: "Packsync Config - Adding line to file to prevent cron failure" #Not sure why this is happening but this seems to fix it
+    lineinfile:
+      dest: /etc/cron.d/packsync-cron
+      line: "\n"
